@@ -3,7 +3,9 @@
 const fs = require("fs");
 const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
-const ExtractTextPlugin = require("extract-text-webpack-plugin");
+// https://github.com/webpack-contrib/extract-text-webpack-plugin#usage
+// Since webpack v4 the extract-text-webpack-plugin should not be used for css. Use mini-css-extract-plugin instead.
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const WebpackBuildNotifierPlugin = require("webpack-build-notifier");
 const ManifestPlugin = require("webpack-manifest-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
@@ -18,6 +20,7 @@ const basePath = fs.realpathSync(path.join(__dirname, "client"));
 const appPath = fs.realpathSync(path.join(__dirname, "client", "app"));
 
 const config = {
+  mode: "development",
   entry: {
     app: ["./client/app/index.js", "./client/app/assets/less/main.less"],
     server: ["./client/app/assets/less/server.less"]
@@ -42,6 +45,7 @@ const config = {
     new webpack.ProvidePlugin({ "window.jQuery": "jquery" }),
     // bundle only default `moment` locale (`en`)
     new webpack.ContextReplacementPlugin(/moment[\/\\]locale$/, /en/),
+    // TODO: https://webpack.js.org/configuration/optimization/#optimization-splitchunks
     new webpack.optimize.CommonsChunkPlugin({
       name: "vendor",
       minChunks: function(module, count) {
@@ -69,9 +73,6 @@ const config = {
       filename: "multi_org.html",
       excludeChunks: ["server"]
     }),
-    new ExtractTextPlugin({
-      filename: "[name].[chunkhash].css"
-    }),
     new ManifestPlugin({
       fileName: "asset-manifest.json"
     }),
@@ -98,6 +99,7 @@ const config = {
           }
         ]
       },
+      // TODO: remove:
       {
         test: /\.css$/,
         use: ExtractTextPlugin.extract([
@@ -109,6 +111,7 @@ const config = {
           }
         ])
       },
+      // TODO: maybe make config a function
       {
         test: /\.less$/,
         use: ExtractTextPlugin.extract([
@@ -221,13 +224,11 @@ if (process.env.DEV_SERVER_HOST) {
 }
 
 if (process.env.NODE_ENV === "production") {
+  config.mode = "production";
   config.output.filename = "[name].[chunkhash].js";
   config.plugins.push(
-    new webpack.optimize.UglifyJsPlugin({
-      sourceMap: true,
-      compress: {
-        warnings: true
-      }
+    new MiniCssExtractPlugin({
+      filename: "[name].[chunkhash].css"
     })
   );
   config.devtool = "source-map";
